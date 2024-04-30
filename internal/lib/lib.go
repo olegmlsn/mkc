@@ -38,12 +38,13 @@ import "C"
 import (
 	"bytes"
 	"fmt"
-	"github.com/olegmlsn/mkc/config"
-	"github.com/olegmlsn/mkc/internal/flag"
 	"io"
 	"os"
 	"sync"
 	"unsafe"
+
+	"github.com/olegmlsn/mkc/config"
+	"github.com/olegmlsn/mkc/internal/flag"
 )
 
 type MKC struct {
@@ -168,5 +169,30 @@ func (m *MKC) ExportCert(alias string) (string, error) {
 	}
 
 	result := C.GoString((*C.char)(outCert))
+	return result, nil
+}
+
+func (m *MKC) CertGetInfo(inCert string, pFlag int) (string, error) {
+	// C.x509CertificateGetInfo func
+	cInCert := C.CString(inCert)
+	defer C.free(unsafe.Pointer(cInCert))
+
+	outDataLength := 32768
+	outData := C.malloc(C.ulong(C.sizeof_char * outDataLength))
+	defer C.free(outData)
+
+	rc := int(C.x509CertificateGetInfo(
+		cInCert,
+		C.int(len(inCert)),
+		C.int(pFlag),
+		(*C.char)(outData),
+		(*C.int)(unsafe.Pointer(&outDataLength)),
+	))
+
+	if rc != 0 {
+		return "", fmt.Errorf("lib: certGetInfo: x509CertificateGetInfo error: %s", rc)
+	}
+
+	result := C.GoString((*C.char)(outData))
 	return result, nil
 }
