@@ -12,5 +12,6 @@
 # Output og the go coverage tool
 *.out
 
-internal/lib
-internal/ca
+include/
+
+example/
