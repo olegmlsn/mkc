@@ -1,0 +1,16 @@
+# GoLand files
+.idea
+
+.DS_Store
+
+# Binaries
+*.so
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output og the go coverage tool
+*.out
+
+internal/lib
+internal/ca
