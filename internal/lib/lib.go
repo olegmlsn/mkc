@@ -21,11 +21,27 @@ package lib
 //     int rv = (kc_funcs)->KC_Init();
 //     return rv;
 // }
+//
+// int loadKeyStore(int storage, char *password, int passLen, char *container, int containerLen, char *alias) {
+//     return kc_funcs->KC_LoadKeyStore(storage, password, passLen, container, containerLen, alias);
+//}
+//
+// int x509ExportCertificateFromStore(char *alias, int flag, char *outCert, int *outCertLength) {
+//     return kc_funcs->X509ExportCertificateFromStore(alias, flag, outCert, outCertLength);
+// }
+//
+// int x509CertificateGetInfo(char *inCert, int inCertLength, int propId, char *outData, int *outDataLength) {
+//     return kc_funcs->X509CertificateGetInfo(inCert, inCertLength, propId, (unsigned char*)outData, outDataLength);
+// }
 import "C"
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/olegmlsn/mkc/config"
+	"github.com/olegmlsn/mkc/internal/flag"
+	"io"
+	"os"
 	"sync"
 	"unsafe"
 )
@@ -59,20 +75,20 @@ func (m *MKC) Init(opt config.Opt) error {
 	fList := C.dlsym(m.Handle, strFList)
 	err = C.dlerror()
 	if err != nil {
-		fmt.Errorf("lib: init: dlsym error: %s", C.GoString(err))
+		return fmt.Errorf("lib: init: dlsym error: %s", C.GoString(err))
 	}
 
 	// C.getFunctionList func
 	C.getFunctionList(fList)
 	err = C.dlerror()
 	if err != nil {
-		fmt.Errorf("lib: init: getFunctionList error: %s", C.GoString(err))
+		return fmt.Errorf("lib: init: getFunctionList error: %s", C.GoString(err))
 	}
 
 	// C.init func
 	rc := int(C.init())
 	if rc != 0 {
-		fmt.Errorf("lib: init: init error: %s", rc)
+		return fmt.Errorf("lib: init: init error: %s", rc)
 	}
 
 	// C.setTSAUrl func
@@ -84,8 +100,73 @@ func (m *MKC) Init(opt config.Opt) error {
 	)
 	err = C.dlerror()
 	if err != nil {
-		fmt.Errorf("lib: init: setTSAUrl error: %s", C.GoString(err))
+		return fmt.Errorf("lib: init: setTSAUrl error: %s", C.GoString(err))
 	}
 
 	return nil
+}
+
+func (m *MKC) LoadCert(cert []byte, passwd string, alias string) error {
+	tmpCert, err := os.CreateTemp("", "tmp.cert.*.p12")
+	if err != nil {
+		return fmt.Errorf("lib: loadCert: CreateTemp error: %s", err)
+	}
+
+	fName := tmpCert.Name()
+
+	defer os.Remove(fName)
+	defer tmpCert.Close()
+
+	written, err := io.Copy(tmpCert, bytes.NewReader(cert))
+	if err != nil {
+		return fmt.Errorf("lib: loadCert: ioCopy error: %s", err)
+	}
+
+	if exp := int64(len(cert)); exp != written {
+		return fmt.Errorf("lib: loadCert: integrity error %w: expected %d, written %d", exp, written)
+	}
+
+	// C.loadKeyStore func
+	cPassword := C.CString(passwd)
+	defer C.free(unsafe.Pointer(cPassword))
+
+	cContainer := C.CString(fName)
+	defer C.free(unsafe.Pointer(cContainer))
+
+	cAlias := C.CString(alias)
+	defer C.free(unsafe.Pointer(cAlias))
+
+	rc := int(C.loadKeyStore(
+		C.int(flag.KCST_PKCS12), cPassword, C.int(len(passwd)),
+		cContainer, C.int(len(fName)), cAlias,
+	))
+	if rc != 0 {
+		return fmt.Errorf("lib: loadCert: loadKeyStore error: %s", rc)
+	}
+	return nil
+}
+
+func (m *MKC) ExportCert(alias string) (string, error) {
+	// C.x509ExportCertificateFromStore func
+	flg := 0
+	outCertLen := 32768
+
+	outCert := C.malloc(C.ulong(C.sizeof_char * outCertLen))
+	defer C.free(outCert)
+
+	cAlias := C.CString(alias)
+	defer C.free(unsafe.Pointer(cAlias))
+
+	rc := int(C.x509ExportCertificateFromStore(
+		cAlias,
+		C.int(flg),
+		(*C.char)(outCert),
+		(*C.int)(unsafe.Pointer(&outCertLen)),
+	))
+	if rc != 0 {
+		return "", fmt.Errorf("lib: exportCert: x509ExportCertificateFromStore error: %s", rc)
+	}
+
+	result := C.GoString((*C.char)(outCert))
+	return result, nil
 }
