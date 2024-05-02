@@ -39,6 +39,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"sync"
 	"unsafe"
@@ -115,8 +116,18 @@ func (m *MKC) LoadCert(cert []byte, passwd string, alias string) error {
 
 	fName := tmpCert.Name()
 
-	defer os.Remove(fName)
-	defer tmpCert.Close()
+	defer func(name string) {
+		err := os.Remove(name)
+		if err != nil {
+			log.Printf("lib: loadCert: os.Remove error: %s", err)
+		}
+	}(fName)
+	defer func(tmpCert *os.File) {
+		err := tmpCert.Close()
+		if err != nil {
+			log.Printf("lib: loadCert: file close error: %s", err)
+		}
+	}(tmpCert)
 
 	written, err := io.Copy(tmpCert, bytes.NewReader(cert))
 	if err != nil {
