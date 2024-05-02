@@ -38,6 +38,10 @@ package mkc
 //     bzero(outSign, *outSignLength);
 //     return kc_funcs->SignData(alias, flag, inData, inDataLength, inSign, inSignLen, outSign, outSignLength);
 // }
+//
+// unsigned long signXML(char *alias, int flags, char *inData, int inDataLength, unsigned char *outSign, int *outSignLength, char *signNodeId, char *parentSignNode, char *parentNameSpace) {
+//     return kc_funcs->SignXML(alias, flags, inData, inDataLength, outSign, outSignLength, signNodeId, parentSignNode, parentNameSpace);
+// }
 import "C"
 
 import (
@@ -280,4 +284,55 @@ func (m *MKC) SignData(data string, alias string, flg int) (string, error) {
 	result := C.GoString((*C.char)(outSign))
 	return result, nil
 
+}
+
+func (m *MKC) SignXML(data string, alias string, flg int) (string, error) {
+	m.Mtx.Lock()
+	defer m.Mtx.Unlock()
+
+	// C.signXML func
+	cAlias := C.CString(alias)
+	defer C.free(unsafe.Pointer(cAlias))
+
+	cInData := C.CString(data)
+	defer C.free(unsafe.Pointer(cInData))
+
+	inDataLength := len(data)
+	outSignLength := 50000 + inDataLength
+	outSign := C.malloc(C.ulong(C.sizeof_uchar * outSignLength))
+	defer C.free(outSign)
+
+	signNodeID := ""
+	cSignNodeID := C.CString(signNodeID)
+	defer C.free(unsafe.Pointer(cSignNodeID))
+
+	parentSignNode := ""
+	cParentSignNode := C.CString(parentSignNode)
+	defer C.free(unsafe.Pointer(cParentSignNode))
+
+	parentNameSpace := ""
+	cParentNameSpace := C.CString(parentNameSpace)
+	defer C.free(unsafe.Pointer(cParentNameSpace))
+
+	rc := int(C.signXML(
+		cAlias,
+		C.int(flg),
+		cInData,
+		C.int(inDataLength),
+		(*C.uchar)(outSign),
+		(*C.int)(unsafe.Pointer(&outSignLength)),
+		cSignNodeID,
+		cParentSignNode,
+		cParentNameSpace,
+	))
+
+	if rc != 0 {
+		if val, ok := KcErrors[rc]; ok {
+			return "", fmt.Errorf("lib: SignXML: signXML error: %s", val)
+		}
+		return "", fmt.Errorf("lib: SignXML: signXML error: %s", rc)
+	}
+
+	result := C.GoString((*C.char)(outSign))
+	return result, nil
 }
