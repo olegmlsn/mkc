@@ -230,7 +230,8 @@ func (m *MKC) AllCertInfo(inCert string) (map[string]string, error) {
 	for flg, fName := range CertPropMap {
 		value, err := m.CertGetInfo(inCert, flg)
 		if err != nil {
-			return nil, err
+			continue
+			//return nil, err
 		}
 		if value != "" {
 			result[fName] = value
