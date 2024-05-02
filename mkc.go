@@ -1,4 +1,4 @@
-package lib
+package mkc
 
 // #cgo LDFLAGS: -ldl
 // #include <stdlib.h>
@@ -48,9 +48,6 @@ import (
 	"os"
 	"sync"
 	"unsafe"
-
-	"github.com/olegmlsn/mkc/config"
-	"github.com/olegmlsn/mkc/internal/flag"
 )
 
 type MKC struct {
@@ -59,17 +56,17 @@ type MKC struct {
 	Mtx    sync.Mutex
 }
 
-func (m *MKC) Init(opt config.Opt) error {
+func (m *MKC) Init(opt Opt) error {
 	m.Mtx.Lock()
 	defer m.Mtx.Unlock()
 
 	// C.dlopen func
-	libName := C.CString(config.LibName)
+	libName := C.CString(LibName)
 	defer C.free(unsafe.Pointer(libName))
 
 	handle := C.dlopen(libName, C.RTLD_LAZY)
 	m.Handle = handle
-	m.Name = config.LibName
+	m.Name = LibName
 	err := C.dlerror()
 	if err != nil {
 		return fmt.Errorf("lib: init: dlopen error: %s", C.GoString(err))
@@ -157,7 +154,7 @@ func (m *MKC) LoadCert(cert []byte, passwd string, alias string) error {
 	defer C.free(unsafe.Pointer(cAlias))
 
 	rc := int(C.loadKeyStore(
-		C.int(flag.KCST_PKCS12), cPassword, C.int(len(passwd)),
+		C.int(KCST_PKCS12), cPassword, C.int(len(passwd)),
 		cContainer, C.int(len(fName)), cAlias,
 	))
 	if rc != 0 {
@@ -224,7 +221,7 @@ func (m *MKC) CertGetInfo(inCert string, pFlag int) (string, error) {
 
 func (m *MKC) AllCertInfo(inCert string) (map[string]string, error) {
 	result := make(map[string]string)
-	for flg, fName := range flag.CertPropMap {
+	for flg, fName := range CertPropMap {
 		value, err := m.CertGetInfo(inCert, flg)
 		if err != nil {
 			return nil, err

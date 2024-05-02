@@ -1,4 +1,4 @@
-package config
+package mkc
 
 type Opt struct {
 	OCSP string
