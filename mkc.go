@@ -232,7 +232,9 @@ func (m *MKC) AllCertInfo(inCert string) (map[string]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		result[fName] = value
+		if value != "" {
+			result[fName] = value
+		}
 	}
 	return result, nil
 }
