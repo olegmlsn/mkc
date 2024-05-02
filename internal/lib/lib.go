@@ -33,6 +33,11 @@ package lib
 // int x509CertificateGetInfo(char *inCert, int inCertLength, int propId, char *outData, int *outDataLength) {
 //     return kc_funcs->X509CertificateGetInfo(inCert, inCertLength, propId, (unsigned char*)outData, outDataLength);
 // }
+//
+// unsigned long signData(char *alias, int flag, char *inData, int inDataLength, unsigned char *inSign, int inSignLen, unsigned char *outSign, int *outSignLength) {
+//     bzero(outSign, *outSignLength);
+//     return kc_funcs->SignData(alias, flag, inData, inDataLength, inSign, inSignLen, outSign, outSignLength);
+// }
 import "C"
 
 import (
@@ -109,6 +114,9 @@ func (m *MKC) Init(opt config.Opt) error {
 }
 
 func (m *MKC) LoadCert(cert []byte, passwd string, alias string) error {
+	m.Mtx.Lock()
+	defer m.Mtx.Unlock()
+
 	tmpCert, err := os.CreateTemp("", "tmp.cert.*.p12")
 	if err != nil {
 		return fmt.Errorf("lib: loadCert: CreateTemp error: %s", err)
@@ -159,6 +167,9 @@ func (m *MKC) LoadCert(cert []byte, passwd string, alias string) error {
 }
 
 func (m *MKC) ExportCert(alias string) (string, error) {
+	m.Mtx.Lock()
+	defer m.Mtx.Unlock()
+
 	// C.x509ExportCertificateFromStore func
 	flg := 0
 	outCertLen := 32768
@@ -184,6 +195,9 @@ func (m *MKC) ExportCert(alias string) (string, error) {
 }
 
 func (m *MKC) CertGetInfo(inCert string, pFlag int) (string, error) {
+	m.Mtx.Lock()
+	defer m.Mtx.Unlock()
+
 	// C.x509CertificateGetInfo func
 	cInCert := C.CString(inCert)
 	defer C.free(unsafe.Pointer(cInCert))
@@ -206,4 +220,58 @@ func (m *MKC) CertGetInfo(inCert string, pFlag int) (string, error) {
 
 	result := C.GoString((*C.char)(outData))
 	return result, nil
+}
+
+func (m *MKC) AllCertInfo(inCert string) (map[string]string, error) {
+	result := make(map[string]string)
+	for flg, fName := range flag.CertPropMap {
+		value, err := m.CertGetInfo(inCert, flg)
+		if err != nil {
+			return nil, err
+		}
+		result[fName] = value
+	}
+	return result, nil
+}
+
+func (m *MKC) SignData(data string, alias string, flg int) (string, error) {
+	m.Mtx.Lock()
+	defer m.Mtx.Unlock()
+
+	// C.signData func
+	cAlias := C.CString(alias)
+	defer C.free(unsafe.Pointer(cAlias))
+
+	inData := C.CString(data)
+	defer C.free(unsafe.Pointer(inData))
+	inDataLength := len(data)
+
+	inSign := ""
+
+	outSignLength := 50000 + 2*inDataLength
+	outSign := C.malloc(C.ulong(C.sizeof_uchar * outSignLength))
+	defer C.free(outSign)
+
+	kcInSignLength := len(inSign)
+	kcInSign := unsafe.Pointer(C.CString(inSign))
+	defer C.free(kcInSign)
+
+	rc := int(C.signData(
+		cAlias,
+		C.int(flg),
+		inData,
+		C.int(inDataLength),
+		(*C.uchar)(kcInSign),
+		C.int(kcInSignLength),
+		(*C.uchar)(outSign),
+		(*C.int)(unsafe.Pointer(&outSignLength)),
+	))
+
+	if rc != 0 {
+		return "", fmt.Errorf("lib: signData: signData error: %s", rc)
+	}
+
+	result := C.GoString((*C.char)(outSign))
+	return result, nil
+
 }
