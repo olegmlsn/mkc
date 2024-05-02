@@ -213,6 +213,9 @@ func (m *MKC) CertGetInfo(inCert string, pFlag int) (string, error) {
 
 	if rc != 0 {
 		if val, ok := KcErrors[rc]; ok {
+			if flg, ok := CertPropMap[pFlag]; ok {
+				return "", fmt.Errorf("lib: certGetInfo: x509CertificateGetInfo error: %s %s", val, flg)
+			}
 			return "", fmt.Errorf("lib: certGetInfo: x509CertificateGetInfo error: %s", val)
 		}
 		return "", fmt.Errorf("lib: certGetInfo: x509CertificateGetInfo error: %s", rc)
