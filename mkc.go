@@ -42,6 +42,11 @@ package mkc
 // unsigned long signXML(char *alias, int flags, char *inData, int inDataLength, unsigned char *outSign, int *outSignLength, char *signNodeId, char *parentSignNode, char *parentNameSpace) {
 //     return kc_funcs->SignXML(alias, flags, inData, inDataLength, outSign, outSignLength, signNodeId, parentSignNode, parentNameSpace);
 // }
+//
+// unsigned long hashData(char *algorithm, int flags, char *inData, int inDataLength, unsigned char *outData, int *outDataLength) {
+//     bzero(outData, *outDataLength);
+//     return kc_funcs->HashData(algorithm, flags, inData, inDataLength, outData, outDataLength);
+// }
 import "C"
 
 import (
