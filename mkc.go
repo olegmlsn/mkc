@@ -336,3 +336,39 @@ func (m *MKC) SignXML(data string, alias string, flg int) (string, error) {
 	result := C.GoString((*C.char)(outSign))
 	return result, nil
 }
+
+func (m *MKC) HashData(data string, alg string, flg int) (string, error) {
+	m.Mtx.Lock()
+	defer m.Mtx.Unlock()
+
+	// C.hashData func
+	kcAlgo := C.CString(alg)
+	defer C.free(unsafe.Pointer(kcAlgo))
+
+	kcInData := C.CString(data)
+	defer C.free(unsafe.Pointer(kcInData))
+	inDataLength := len(data)
+
+	outDataLength := 50000 + 2*inDataLength
+	outData := C.malloc(C.ulong(C.sizeof_uchar * outDataLength))
+	defer C.free(outData)
+
+	rc := int(C.hashData(
+		kcAlgo,
+		C.int(flg),
+		kcInData,
+		C.int(inDataLength),
+		(*C.uchar)(outData),
+		(*C.int)(unsafe.Pointer(&outDataLength)),
+	))
+
+	if rc != 0 {
+		if val, ok := KcErrors[rc]; ok {
+			return "", fmt.Errorf("lib: HashData: hashData error: %s", val)
+		}
+		return "", fmt.Errorf("lib: HashData: hashData error: %s", rc)
+	}
+
+	result := C.GoString((*C.char)(outData))
+	return result, nil
+}
