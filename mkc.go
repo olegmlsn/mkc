@@ -48,9 +48,9 @@ package mkc
 //     return kc_funcs->HashData(algorithm, flags, inData, inDataLength, outData, outDataLength);
 // }
 //
-// unsigned long signHash(char *algorithm, int flags, char *inData, int inDataLength, unsigned char *outData, int *outDataLength) {
-//     bzero(outData, *outDataLength);
-//     return kc_funcs->SignHash(algorithm, flags, inData, inDataLength, outData, outDataLength);
+// unsigned long signHash(char *alias, int flags, char *inHash, int inHashLength, unsigned char *outSign, int *outSignLength) {
+//     bzero(outSign, *outSignLength);
+//     return kc_funcs->SignHash(alias, flags, inHash, inHashLength, outSign, outSignLength);
 // }
 import "C"
 
@@ -383,29 +383,29 @@ func (m *MKC) HashData(data string, alg string, flg int) (string, error) {
 	return result, nil
 }
 
-func (m *MKC) SignHash(data string, alg string, flg int) (string, error) {
+func (m *MKC) SignHash(data string, alias string, flg int) (string, error) {
 	m.Mtx.Lock()
 	defer m.Mtx.Unlock()
 
 	// C.signHash func
-	kcAlgo := C.CString(alg)
-	defer C.free(unsafe.Pointer(kcAlgo))
+	kcAlias := C.CString(alias)
+	defer C.free(unsafe.Pointer(kcAlias))
 
-	kcInData := C.CString(data)
-	defer C.free(unsafe.Pointer(kcInData))
-	inDataLength := len(data)
+	kcInHash := C.CString(data)
+	defer C.free(unsafe.Pointer(kcInHash))
+	inHashLength := len(data)
 
-	outDataLength := 50000 + 2*inDataLength
-	outData := C.malloc(C.ulong(C.sizeof_uchar * outDataLength))
-	defer C.free(outData)
+	outSignLength := 50000 + 2*inHashLength
+	outSign := C.malloc(C.ulong(C.sizeof_uchar * outSignLength))
+	defer C.free(outSign)
 
 	rc := int(C.signHash(
-		kcAlgo,
+		kcAlias,
 		C.int(flg),
-		kcInData,
-		C.int(inDataLength),
-		(*C.uchar)(outData),
-		(*C.int)(unsafe.Pointer(&outDataLength)),
+		kcInHash,
+		C.int(inHashLength),
+		(*C.uchar)(outSign),
+		(*C.int)(unsafe.Pointer(&outSignLength)),
 	))
 
 	if rc != 0 {
@@ -415,6 +415,6 @@ func (m *MKC) SignHash(data string, alg string, flg int) (string, error) {
 		return "", fmt.Errorf("lib: SignHash: signHash error: %s", rc)
 	}
 
-	result := C.GoString((*C.char)(outData))
+	result := C.GoString((*C.char)(outSign))
 	return result, nil
 }
