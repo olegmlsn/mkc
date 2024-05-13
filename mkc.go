@@ -47,6 +47,11 @@ package mkc
 //     bzero(outData, *outDataLength);
 //     return kc_funcs->HashData(algorithm, flags, inData, inDataLength, outData, outDataLength);
 // }
+//
+// unsigned long signHash(char *algorithm, int flags, char *inData, int inDataLength, unsigned char *outData, int *outDataLength) {
+//     bzero(outData, *outDataLength);
+//     return kc_funcs->SignHash(algorithm, flags, inData, inDataLength, outData, outDataLength);
+// }
 import "C"
 
 import (
@@ -372,6 +377,42 @@ func (m *MKC) HashData(data string, alg string, flg int) (string, error) {
 			return "", fmt.Errorf("lib: HashData: hashData error: %s", val)
 		}
 		return "", fmt.Errorf("lib: HashData: hashData error: %s", rc)
+	}
+
+	result := C.GoString((*C.char)(outData))
+	return result, nil
+}
+
+func (m *MKC) SignHash(data string, alg string, flg int) (string, error) {
+	m.Mtx.Lock()
+	defer m.Mtx.Unlock()
+
+	// C.signHash func
+	kcAlgo := C.CString(alg)
+	defer C.free(unsafe.Pointer(kcAlgo))
+
+	kcInData := C.CString(data)
+	defer C.free(unsafe.Pointer(kcInData))
+	inDataLength := len(data)
+
+	outDataLength := 50000 + 2*inDataLength
+	outData := C.malloc(C.ulong(C.sizeof_uchar * outDataLength))
+	defer C.free(outData)
+
+	rc := int(C.signHash(
+		kcAlgo,
+		C.int(flg),
+		kcInData,
+		C.int(inDataLength),
+		(*C.uchar)(outData),
+		(*C.int)(unsafe.Pointer(&outDataLength)),
+	))
+
+	if rc != 0 {
+		if val, ok := KcErrors[rc]; ok {
+			return "", fmt.Errorf("lib: SignHash: signHash error: %s", val)
+		}
+		return "", fmt.Errorf("lib: SignHash: signHash error: %s", rc)
 	}
 
 	result := C.GoString((*C.char)(outData))
