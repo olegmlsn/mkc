@@ -526,8 +526,20 @@ func (m *MKC) VerifyData(data string, sign string, alias string, flg int) ([]str
 	}
 
 	result := []string{}
-	result = append(result, C.GoString((*C.char)(kcOutData)))
-	result = append(result, C.GoString((*C.char)(kcOutVerifyInfo)))
-	result = append(result, C.GoString((*C.char)(kcOutCert)))
+	//result = append(result, C.GoString((*C.char)(kcOutData)))
+	//result = append(result, C.GoString((*C.char)(kcOutVerifyInfo)))
+	//result = append(result, C.GoString((*C.char)(kcOutCert)))
+	result = append(result, string(kcOutData[:]))
+	result = append(result, string(kcOutVerifyInfo[:]))
+	result = append(result, string(kcOutCert[:]))
 	return result, nil
 }
+
+//func byteSlice(content []byte) []byte {
+//	for i, v := range content {
+//		if v == 0 {
+//			return content[:i]
+//		}
+//	}
+//	return content
+//}
