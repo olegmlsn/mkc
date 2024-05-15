@@ -468,9 +468,11 @@ func (m *MKC) VerifyData(data string, sign string, alias string, flg int) ([]str
 	defer m.Mtx.Unlock()
 
 	// C.verifyData func
-	outCertLength := 64768
-	outVerifyInfoLength := 64768
-	outDataLength := 28000
+	const (
+		outCertLength       = 64768
+		outVerifyInfoLength = 64768
+		outDataLength       = 28000
+	)
 
 	kcAlias := C.CString(alias)
 	defer C.free(unsafe.Pointer(kcAlias))
@@ -483,21 +485,21 @@ func (m *MKC) VerifyData(data string, sign string, alias string, flg int) ([]str
 	defer C.free(kcInSign)
 	inputSignLength := len(sign)
 
-	//var kcOutData [outDataLength]byte
-	kcOutData := C.malloc(C.ulong(C.sizeof_char * outDataLength))
-	defer C.free(kcOutData)
+	var kcOutData [outDataLength]byte
+	//kcOutData := C.malloc(C.ulong(C.sizeof_char * outDataLength))
+	//defer C.free(kcOutData)
 	kcOutDataLen := outDataLength
 
-	//var kcOutVerifyInfo [outVerifyInfoLength]byte
-	kcOutVerifyInfo := C.malloc(C.ulong(C.sizeof_char * outVerifyInfoLength))
-	defer C.free(kcOutVerifyInfo)
+	var kcOutVerifyInfo [outVerifyInfoLength]byte
+	//kcOutVerifyInfo := C.malloc(C.ulong(C.sizeof_char * outVerifyInfoLength))
+	//defer C.free(kcOutVerifyInfo)
 	kcOutVerifyInfoLen := outVerifyInfoLength
 
 	kcInCertID := 0
 
-	//var kcOutCert [outCertLength]byte
-	kcOutCert := C.malloc(C.ulong(C.sizeof_char * outCertLength))
-	defer C.free(kcOutCert)
+	var kcOutCert [outCertLength]byte
+	//kcOutCert := C.malloc(C.ulong(C.sizeof_char * outCertLength))
+	//defer C.free(kcOutCert)
 	kcOutCertLen := outCertLength
 
 	rc := int(C.verifyData(
@@ -520,7 +522,7 @@ func (m *MKC) VerifyData(data string, sign string, alias string, flg int) ([]str
 		if val, ok := KcErrors[rc]; ok {
 			return nil, fmt.Errorf("lib: VerifyData: verifyData error: %s", val)
 		}
-		return nil, fmt.Errorf("lib: VerifyData: verifyData error: %s", rc)
+		return nil, fmt.Errorf("lib: VerifyData: verifyData error: %d", rc)
 	}
 
 	result := []string{}
