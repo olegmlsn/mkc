@@ -52,6 +52,10 @@ package mkc
 //     bzero(outSign, *outSignLength);
 //     return kc_funcs->SignHash(alias, flags, inHash, inHashLength, outSign, outSignLength);
 // }
+//
+// unsigned long verifyXML(char *alias, int flags, char *inData, int inDataLength, char *outVerifyInfo, int *outVerifyInfoLen) {
+// 	   return kc_funcs->VerifyXML(alias, flags, inData, inDataLength, outVerifyInfo, outVerifyInfoLen);
+// }
 import "C"
 
 import (
@@ -416,5 +420,41 @@ func (m *MKC) SignHash(data string, alias string, flg int) (string, error) {
 	}
 
 	result := C.GoString((*C.char)(outSign))
+	return result, nil
+}
+
+func (m *MKC) VerifyXML(data string, alias string, flg int) (string, error) {
+	m.Mtx.Lock()
+	defer m.Mtx.Unlock()
+
+	// C.verifyXML func
+	cAlias := C.CString(alias)
+	defer C.free(unsafe.Pointer(cAlias))
+
+	inData := C.CString(data)
+	defer C.free(unsafe.Pointer(inData))
+
+	inDataLength := len(data)
+	outVerifyInfoLen := 64768
+	outVerifyInfo := C.malloc(C.ulong(C.sizeof_char * outVerifyInfoLen))
+	defer C.free(outVerifyInfo)
+
+	rc := int(C.verifyXML(
+		cAlias,
+		C.int(flg),
+		inData,
+		C.int(inDataLength),
+		(*C.char)(outVerifyInfo),
+		(*C.int)(unsafe.Pointer(&outVerifyInfoLen)),
+	))
+
+	if rc != 0 {
+		if val, ok := KcErrors[rc]; ok {
+			return "", fmt.Errorf("lib: VerifyXML: verifyXML error: %s", val)
+		}
+		return "", fmt.Errorf("lib: VerifyXML: verifyXML error: %s", rc)
+	}
+
+	result := C.GoString((*C.char)(outVerifyInfo))
 	return result, nil
 }
