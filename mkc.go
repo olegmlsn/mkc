@@ -56,6 +56,10 @@ package mkc
 // unsigned long verifyXML(char *alias, int flags, char *inData, int inDataLength, char *outVerifyInfo, int *outVerifyInfoLen) {
 // 	   return kc_funcs->VerifyXML(alias, flags, inData, inDataLength, outVerifyInfo, outVerifyInfoLen);
 // }
+//
+// unsigned long verifyData(char *alias, int flags, char *inData, int inDataLength, unsigned char *inoutSign, int inoutSignLength, char *outData, int *outDataLen, char *outVerifyInfo, int *outVerifyInfoLen, int inCertID, char *outCert, int *outCertLength) {
+//    return kc_funcs->VerifyData(alias, flags, inData, inDataLength, inoutSign, inoutSignLength, outData, outDataLen, outVerifyInfo, outVerifyInfoLen, inCertID, outCert, outCertLength);
+// }
 import "C"
 
 import (
@@ -456,5 +460,72 @@ func (m *MKC) VerifyXML(data string, alias string, flg int) (string, error) {
 	}
 
 	result := C.GoString((*C.char)(outVerifyInfo))
+	return result, nil
+}
+
+func (m *MKC) VerifyData(data string, sign string, alias string, flg int) ([]string, error) {
+	m.Mtx.Lock()
+	defer m.Mtx.Unlock()
+
+	// C.verifyData func
+	outCertLength := 64768
+	outVerifyInfoLength := 64768
+	outDataLength := 28000
+
+	kcAlias := C.CString(alias)
+	defer C.free(unsafe.Pointer(kcAlias))
+
+	kcInData := C.CString(data)
+	defer C.free(unsafe.Pointer(kcInData))
+	inDataLength := len(data)
+
+	kcInSign := unsafe.Pointer(C.CString(sign))
+	defer C.free(kcInSign)
+	inputSignLength := len(sign)
+
+	//var kcOutData [outDataLength]byte
+	kcOutData := C.malloc(C.ulong(C.sizeof_char * outDataLength))
+	defer C.free(kcOutData)
+	kcOutDataLen := outDataLength
+
+	//var kcOutVerifyInfo [outVerifyInfoLength]byte
+	kcOutVerifyInfo := C.malloc(C.ulong(C.sizeof_char * outVerifyInfoLength))
+	defer C.free(kcOutVerifyInfo)
+	kcOutVerifyInfoLen := outVerifyInfoLength
+
+	kcInCertID := 0
+
+	//var kcOutCert [outCertLength]byte
+	kcOutCert := C.malloc(C.ulong(C.sizeof_char * outCertLength))
+	defer C.free(kcOutCert)
+	kcOutCertLen := outCertLength
+
+	rc := int(C.verifyData(
+		kcAlias,
+		C.int(flg),
+		kcInData,
+		C.int(inDataLength),
+		(*C.uchar)(kcInSign),
+		C.int(inputSignLength),
+		(*C.char)(unsafe.Pointer(&kcOutData)),
+		(*C.int)(unsafe.Pointer(&kcOutDataLen)),
+		(*C.char)(unsafe.Pointer(&kcOutVerifyInfo)),
+		(*C.int)(unsafe.Pointer(&kcOutVerifyInfoLen)),
+		C.int(kcInCertID),
+		(*C.char)(unsafe.Pointer(&kcOutCert)),
+		(*C.int)(unsafe.Pointer(&kcOutCertLen)),
+	))
+
+	if rc != 0 {
+		if val, ok := KcErrors[rc]; ok {
+			return nil, fmt.Errorf("lib: VerifyData: verifyData error: %s", val)
+		}
+		return nil, fmt.Errorf("lib: VerifyData: verifyData error: %s", rc)
+	}
+
+	result := []string{}
+	result = append(result, C.GoString((*C.char)(kcOutData)))
+	result = append(result, C.GoString((*C.char)(kcOutVerifyInfo)))
+	result = append(result, C.GoString((*C.char)(kcOutCert)))
 	return result, nil
 }
