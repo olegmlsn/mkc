@@ -544,7 +544,7 @@ func (m *MKC) VerifyData(data string, sign string, alias string, flg int) ([]str
 }
 
 func (m *MKC) GetLastError() int {
-	return C.getLastError()
+	return int(C.getLastError())
 }
 
 func (m *MKC) GetLastErrorStr() (string, error) {
