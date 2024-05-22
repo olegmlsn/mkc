@@ -60,6 +60,14 @@ package mkc
 // unsigned long verifyData(char *alias, int flags, char *inData, int inDataLength, unsigned char *inoutSign, int inoutSignLength, char *outData, int *outDataLen, char *outVerifyInfo, int *outVerifyInfoLen, int inCertID, char *outCert, int *outCertLength) {
 //    return kc_funcs->VerifyData(alias, flags, inData, inDataLength, inoutSign, inoutSignLength, outData, outDataLen, outVerifyInfo, outVerifyInfoLen, inCertID, outCert, outCertLength);
 // }
+//
+// unsigned long getLastError() {
+//     return kc_funcs->KC_GetLastError();
+// }
+//
+// unsigned long getLastErrorString(char *errorString, int *bufSize) {
+//     return kc_funcs->KC_GetLastErrorString(errorString, bufSize);
+// }
 import "C"
 
 import (
@@ -535,11 +543,28 @@ func (m *MKC) VerifyData(data string, sign string, alias string, flg int) ([]str
 	return result, nil
 }
 
-//func byteSlice(content []byte) []byte {
-//	for i, v := range content {
-//		if v == 0 {
-//			return content[:i]
-//		}
-//	}
-//	return content
-//}
+func (m *MKC) GetLastError() int {
+	return C.getLastError()
+}
+
+func (m *MKC) GetLastErrorStr() (string, error) {
+	const errLength = 65534
+
+	errLen := errLength
+
+	var errStr [errLength]byte
+
+	rc := int(C.getLastErrorString(
+		(*C.char)(unsafe.Pointer(&errStr)),
+		(*C.int)(unsafe.Pointer(&errLen)),
+	))
+
+	if rc != 0 {
+		if val, ok := KcErrors[rc]; ok {
+			return "", fmt.Errorf("lib: GetLastErrorStr: getLastErrorStr error: %s", val)
+		}
+		return "", fmt.Errorf("lib: GetLastErrorStr: getLastErrorStr error: %d", rc)
+	}
+
+	return string(errStr[:errLen]), nil
+}
