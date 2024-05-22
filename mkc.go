@@ -526,6 +526,12 @@ func (m *MKC) VerifyData(data string, sign string, alias string, flg int) ([]str
 		(*C.int)(unsafe.Pointer(&kcOutCertLen)),
 	))
 
+	errStr, err := m.GetLastErrorStr()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("in lib Last Error String ", errStr)
+
 	if rc != 0 {
 		if val, ok := KcErrors[rc]; ok {
 			return nil, fmt.Errorf("lib: VerifyData: verifyData error: %s", val)
